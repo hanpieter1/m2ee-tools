@@ -29,6 +29,8 @@ class M2EEConfig:
 
         self._conf, self._mtimes = read_yaml_files(yaml_files)
 
+        self._decrypt_passwords()
+
         self._all_systems_are_go = True
 
         self._check_appcontainer_config()
@@ -80,6 +82,31 @@ class M2EEConfig:
             self._conf['mxruntime']['RuntimePath'] = runtimePath
 
         self._warn_constants()
+
+    def _decrypt_passwords(self):
+        try:
+            self._conf['m2ee']['admin_pass'] = self._decrypt_password(self._conf['m2ee']['admin_pass'])
+        except KeyError:
+            pass
+        except Exception as e:
+            raise Exception('could not decrypt m2ee admin_pass: ' + str(e))
+
+    def _decrypt_password(self, gpg_encrypted_data):
+        pw = gpg_encrypted_data.strip()
+        if not pw.startswith('-----BEGIN PGP MESSAGE-----'):
+            return gpg_encrypted_data
+
+        r = subprocess.Popen(
+            ('gpg', '-d'),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        out, err = r.communicate(pw)
+        if r.returncode == 0:
+            return out
+        else:
+            raise Exception('gpg failed to decode with error: ' + err)
 
     def _setup_classpath(self):
         logger.debug("Determining classpath to be used...")
