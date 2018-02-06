@@ -74,8 +74,6 @@ class M2EEConfig:
                          % runtimePath)
             self._conf['mxruntime']['RuntimePath'] = runtimePath
 
-        self._warn_constants()
-
     def _setup_classpath(self):
         logger.debug("Determining classpath to be used...")
         classpath = self._setup_classpath_runtime_binary()
@@ -687,10 +685,9 @@ class M2EEConfig:
     def get_runtime_path(self):
         return self._runtime_path
 
-    def _warn_constants(self):
+    def check_constants(self):
         if 'Constants' not in self._model_metadata:
-            return
-        if 'MicroflowConstants' not in self._conf['mxruntime']:
+            logger.info("No unpacked application model available.")
             return
 
         model_constants = [
@@ -702,9 +699,11 @@ class M2EEConfig:
 
         missing = [m for m in model_constants if m not in yaml_constants]
         if missing:
-            logger.warn('Constants not defined:')
+            logger.warn('Missing constant definitions:')
             for constant in missing:
                 logger.warn('- %s' % constant)
+        else:
+            logger.info('OK: All required constant definitions are present.')
 
         obsolete = [m for m in yaml_constants if m not in model_constants]
         if obsolete:

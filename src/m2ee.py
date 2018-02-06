@@ -658,6 +658,9 @@ class CLI(cmd.Cmd, object):
                 and f.startswith(text)
                 and (f.endswith(".zip") or f.endswith(".mda"))]
 
+    def do_check_constants(self, args):
+        self.m2ee.config.check_constants()
+
     def do_log(self, args):
         if self._cleanup_logging():
             return
