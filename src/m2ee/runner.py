@@ -10,6 +10,7 @@ import os
 import signal
 import time
 import errno
+import fcntl
 from time import sleep
 from client import M2EEAdminException
 from m2ee.exceptions import M2EEException
@@ -198,6 +199,8 @@ class M2EERunner:
                 cmd,
                 close_fds=True,
                 stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 cwd='/',
                 env=env,
             )
@@ -207,6 +210,9 @@ class M2EERunner:
             else:
                 logger.error("Starting JVM failed: %s" % e)
                 return 3
+
+        fcntl.fcntl(proc.stdout, fcntl.F_SETFL, fcntl.fcntl(proc.stdout, fcntl.F_GETFL) | os.O_NONBLOCK)
+        fcntl.fcntl(proc.stderr, fcntl.F_SETFL, fcntl.fcntl(proc.stderr, fcntl.F_GETFL) | os.O_NONBLOCK)
 
         # always write pid asap, so that monitoring can detect apps that should
         # be started but fail to do so
@@ -223,6 +229,16 @@ class M2EERunner:
                 return 0x20 + dead
             if self.check_pid(proc.pid) and self._client.ping():
                 break
+            while True:
+               try:
+                   os.write(1, os.read(proc.stdout.fileno(), 1024))
+               except OSError:
+                   break
+            while True:
+               try:
+                   os.write(2, os.read(proc.stderr.fileno(), 1024))
+               except OSError:
+                   break
             t += step
         if t >= timeout:
             logger.debug("Timeout: Java subprocess takes too long to start.")
